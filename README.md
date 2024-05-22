@@ -1,136 +1,94 @@
 # **Install-Dspace**
 Install Dspace on Ubuntu 22.04.4 LST (wsl)
 
-Prerequisite software:
+## Backend
 
-i) Java JDK
+### Change user to root
+sudo su
+sudo apt update
+sudo apt-get upgrade
 
-ii) Apache Maven
+### Install git, jdk
+sudo add-apt-repository ppa:git-core/ppa
+sudo apt update; apt install git
+sudo apt install openjdk-11-jdk ant maven
 
-iii) Apache Ant
+### Install postgresqql
+wget --quiet -O - https://www.postgresql.org/media/keys/ACCC4CF8.asc | sudo apt-key add -
+echo "deb http://apt.postgresql.org/pub/repos/apt/ jammy"-pgdg main | sudo tee /etc/apt/source.list.d/pgdg.list
+// tee: /etc/apt/source.list.d/pgdg.list: No such file or directory
+sudo apt-get update
+sudo apt-get install postgresql postgresql-client postgresql-contrib libpostgresql-jdbc-java -y
+psql -V psql
+sudo su postgres
+cd /etc/postgresql/14/main
+createuser --username=postgres --no-superuser --pwprompt dspace
+createdb --username=postgres --owner=dspace --encoding=UNICODE -T template0 dspace
+psql --username=postgres dspace -c "CREATE EXTENSION pgcrypto;"
+exit
+sudo nano /etc/postgresql/14/main/pg_hba.conf
+// add following line above # "local" is for Unix ...
+local all dspace md5
+sudo /etc/init.d/postgresql restart
 
-iv) Apache Tomcat
-
-v) PostgreSQL
-
-vi) Solr
-
-vii) Dspace 7.6 – backend
-
-viii) Dspace-angular 7.6 – frontend
-
-ix) Node.js
-
-x) Node Version Manager (NVM)
-
-xi) Yarn
-
-xii) gedit (text editor software)
-
-## First update and upgrade your package system
-sudo apt update && sudo apt upgrade -y
-
-## Create a Dspace user with password
+### Add user
 sudo useradd -m dspace
 sudo passwd dspace
 
-## Add dspace user to sudoers group
-sudo usermod -aG sudo dspace
-
-## Create the directory for the DSpace installation
-cd
-sudo mkdir dspace
-
-## Change the dspace folder permission to the dspace user
-sudo chown dspace /dspace
-
-## Build the Installation Package
-## Install packages to support the Dspace installation
-sudo apt install wget curl git build-essential gedit zip unzip -y
-
-## Install Open JDK
-sudo apt install openjdk-11-jdk -y
-
-## Set the JAVA_HOME & JAVA_OPTS Environment Variable
-sudo mousepad /etc/environment
-
-## Add the below lines at the bottom of the file
-JAVA_HOME="/usr/lib/jvm/java-11-openjdk-amd64"
-JAVA_OPTS="-Xmx512M -Xms64M -Dfile.encoding=UTF-8"
-PATH=${JAVA_HOME}/bin:${PATH}
-
-## Save and close the file.
-## Run the following commands to check the status of Java Home & Java OPTS
-source /etc/environment
-echo $JAVA_HOME
-echo $JAVA_OPTS
-
-## Install Maven and Ant
-sudo apt install maven ant -y
-
-## Install PostgreSQL
-sudo apt-get install postgresql postgresql-client postgresql-contrib libpostgresql-jdbc-java -y
-
-## Check the PostgreSQL version number by running the below command
-psql -V psql
-
-sudo pg_ctlcluster 14 main start
-sudo systemctl status postgresql
-
-## Create a password for PostgreSQL
-sudo passwd postgres [Give a password. for ex. “dspace”]
-su postgres
-
-## Exit from the current path
+### Install solr
+sudo mkdir /build
+sudo mkdir /opt/solr-8.11
+cd /opt/solr-8.11
+sudo chown -R dspace:dspace /opt/solr-8.11
+wget -c https://dlcdn.apache.org/lucene/solr/8.11.3/solr-8.11.3.tgz
+tar xvf solr-8.11.3.tgz
+cp -rf /opt/solr-8.11/solr-8.11.3/* /opt/solr-8.11/
+rm -rf solr-8.11.3 solr-8.11.3.tgz
+/opt/solr-8.11/bin/solr start -force
+/opt/solr-8.11/bin/solr status
+http://localhost:8983/solr
 exit
 
-## Open the following file
-sudo mousepad /etc/postgresql/14/main/postgresql.conf
-
-## Comment out the line (remove #) listen_addresses = ‘localhost’ under connection settings option.
-## Save and exit
-
-## We have to encrypt the security of PostgreSQL. Change the PostgreSQL version no. if required. Open the following file.
-sudo mousepad /etc/postgresql/14/main/pg_hba.conf
-
-## Add the following above the line, # Database administrative login by Unix domain socket.
-#DSpace configuration
-host dspace dspace 127.0.0.1 255.255.255.255 md5
-
-## Restart Postresql
-sudo systemctl restart postgresql
-
-## Solr Installation 
-Throught docker (https://docs.docker.com/engine/install/ubuntu/)
-sudo docker pull solr
-sudo docker run -p 8983:8983 -t solr
-
-## Download the DSpace package
-sudo mkdir /build
-
+### Download dspace
+sudo su
 cd /build
-sudo wget https://github.com/DSpace/DSpace/archive/refs/tags/dspace-7.6.1.zip
-sudo unzip dspace-7.6.1.zip
-sudo chmod 777 -R /build
-
-## Install Tomcat
-sudo docker pull tomcat
-sudo docker run -it --rm tomcat
-
-## Database setup
-cd /etc/postgresql/14/main
-createuser --username=postgres --no-superuser --pwprompt dspace
-createdb --username=postgres --owner=dspace --encoding=UNICODE dspace
-psql --username=postgres dspace -c "CREATE EXTENSION pgcrypto;"
-
-cd /build/DSpace-dspace-7.6.1/dspace/config
-sudo cp local.cfg.EXAMPLE local.cfg
-### See config file
-sudo mousepad local.cfg
-
-## Installation of DSpace backend
+wget https://github.com/DSpace/DSpace/archive/refs/tags/dspace-7.6.1.tar.gz
+if error: wget: unable to resolve host address ‘github.com’
+ nano /etc/resolv.conf
+add line
+nameserver 8.8.8.8
+tar zxvf dspace-7.6.1.tar.gz
 cd /build/DSpace-dspace-7.6.1/
-mvn package
-
+sudo mvn -U package 
 cd dspace/target/dspace-installer
-ant fresh_install
+sudo ant fresh_install
+cd 
+sudo apt-get install tomcat9
+sudo nano /lib/systemd/system/tomcat9.service
+Add under security
+ReadWritePaths=/dspace
+sudo cp -R /dspace/webapps/* /var/lib/tomcat9/webapps
+sudo cp -R /dspace/solr/* /opt/solr-8.11/server/solr/configsets/
+sudo chown -R dspace:dspace /opt/solr-8.11/server/solr/configsets/
+sudo nano /etc/profile
+add the end
+export JAVA_HOME=/user/lib/jvm/java-11-openjdk-amd64
+export CATALINA_HOME=/etc/tomcat
+
+### Start
+sudo systemctl restart tomcat9.service
+systemctl daemon-reload
+sudo systemctl restart tomcat9.service
+sudo /dspace/bin/dspace create-administrator
+dspace@localhost
+dspace
+dspace
+y
+sudo rm -rf /build
+sudo /etc/init.d/postgresql restart
+/opt/solr-8.11/bin/solr start -force
+/opt/solr-8.11/bin/solr stop -force
+/opt/solr-8.11/bin/solr start -force
+sudo systemctl restart tomcat9.service
+
+http://localhost:8080/server
