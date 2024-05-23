@@ -1,5 +1,8 @@
 # **Install-Dspace**
 Install Dspace on Ubuntu 22.04.4 LST (wsl)
+Lời khuyên: để hạn chế config bạn nên đặt cấu hình như mặc định.
+username: dspace
+password: dspace
 
 ## Backend
 
@@ -137,7 +140,7 @@ add the end
 
 export JAVA_HOME=/user/lib/jvm/java-11-openjdk-amd64
 
-export CATALINA_HOME=/etc/tomcat
+export CATALINA_HOME=/etc/tomcat9
 
 ### Start
 sudo systemctl restart tomcat9.service
@@ -145,6 +148,8 @@ sudo systemctl restart tomcat9.service
 systemctl daemon-reload
 
 sudo systemctl restart tomcat9.service
+
+sudo systemctl enable tomcat9.service
 
 sudo /dspace/bin/dspace create-administrator
 
@@ -156,16 +161,28 @@ dspace
 
 y
 
-sudo rm -rf /build
-
 sudo /etc/init.d/postgresql restart
-
-/opt/solr-8.11/bin/solr start -force
 
 /opt/solr-8.11/bin/solr stop -force
 
 /opt/solr-8.11/bin/solr start -force
 
+cp /dspace/config/local.cfg.EXAMPLE /dspace/config/local.cfg
+
+/dspace/bin/dspace database migrate
+
+# config if you want
+nano /dspace/config/local.cfg
+
+rest.cors.allowed-origins = ${dspace.ui.url}
+
+cd /root
+
+chown -R tomcat /dspace/upload 
+
 sudo systemctl restart tomcat9.service
 
 http://localhost:8080/server
+
+## Finish Backend
+Tài liệu tham khảo: https://www.youtube.com/watch?v=VKeTo4xuKq8
