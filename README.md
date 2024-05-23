@@ -318,6 +318,10 @@ systemctl start tomcat9
 url: http://localhost:8080/server
 
 ### To start frontend
+nvm install v18.20.3
+
+npm install --global pm2
+
 pm2 start /opt/dspace-7-angular/dspace-ui.json
 
 url: http://localhost:4000
