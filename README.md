@@ -184,5 +184,141 @@ sudo systemctl restart tomcat9.service
 
 http://localhost:8080/server
 
-## Finish Backend
-Tài liệu tham khảo: https://www.youtube.com/watch?v=VKeTo4xuKq8
+### Fontend
+sudo su
+
+cd
+
+apt-get update && apt-get upgrade -y
+
+apt-get install curl -y
+
+curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.39.3/install.sh | bash
+
+source ~/.bashrc
+
+nvm install v18.20.3
+
+npm install --global yarn
+
+cd /root
+
+wget -c https://github.com/DSpace/dspace-angular/archive/refs/tags/dspace-7.6.1.tar.gz
+
+tar zxvf dspace-7.6.1.tar.gz
+
+mv dspace-angular-dspace-7.6.1/ dspace-7-angular
+
+cd dspace-7-angular
+
+yarn install
+
+cp -r /root/dspace-7-angular /opt/
+
+chown dspace:dspace -R /opt/dspace-7-angular
+
+cp /opt/dspace-7-angular/config/config.example.yml /opt/dspace-7-angular/config/config.prod.yml
+
+nano /opt/dspace-7-angular/config/config.prod.yml
+
+ui:
+
+	ssl: false
+ 
+	host: localhost
+ 
+	port: 4000
+
+rest:
+
+	ssl: false
+ 
+	host: localhost
+ 
+	port: 8080
+ 
+save
+
+nano /opt/dspace-7-angular/config/config.yml
+
+rest:
+
+	ssl: false
+ 
+	host: localhost
+ 
+	port: 80
+ 
+	nameSpace: /server
+
+### Install PM2
+
+npm install --global pm2
+
+nano /opt/dspace-7-angular/dspace-ui.json
+
+Add the following lines and save
+{
+
+  "apps": [{
+  
+	"name": "dspace-ui",
+ 
+	"cwd": "/opt/dspace-7-angular",
+ 
+	"script": "dist/server/main.js",
+ 
+	"env": {
+ 
+		"NODE_ENV": "production",
+  
+		"DSPACE_REST_SSL": "false",
+  
+		"DSPACE_REST_HOST": "localhost",
+  
+		"DSPACE_REST_PORT": "8080",
+  
+		"DSPACE_REST_NAMEPSACE": "/server"
+  
+		}
+  
+	}
+ 
+	]
+ 
+}
+
+
+cd /opt/dspace-7-angular/
+
+yarn build:prod
+
+cd /opt/dspace-7-angular/
+
+systemctl stop tomcat9
+
+/opt/solr-8.11/bin/solr stop -force
+
+pm2 delete all
+
+pm2 start dspace-ui.json
+
+/opt/solr-8.11/bin/solr start -force
+
+systemctl start tomcat9
+
+
+### To start backend
+/opt/solr-8.11/bin/solr start -force
+
+systemctl restart postgresql
+
+systemctl start tomcat9
+
+url: http://localhost:8080/server
+
+### To start frontend
+pm2 start /opt/dspace-7-angular/dspace-ui.json
+
+url: http://localhost:4000
+# Tài liệu tham khảo: https://www.youtube.com/watch?v=VKeTo4xuKq8
