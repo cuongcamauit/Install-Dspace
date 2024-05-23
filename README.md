@@ -48,6 +48,8 @@ sudo nano /etc/postgresql/14/main/pg_hba.conf
 
 local all dspace md5
 
+local all all 127.0.0.1/32 md5
+
 sudo /etc/init.d/postgresql restart
 
 
@@ -57,7 +59,14 @@ sudo useradd -m dspace
 sudo passwd dspace
 
 ### Install solr
-sudo mkdir /build
+
+mkdir /dspace
+
+chown dspace:dspace /dspace
+
+mkdir /build
+
+chmod -R 777 /build
 
 sudo mkdir /opt/solr-8.11
 
